@@ -4,6 +4,7 @@
   "description": "maybe don't use this to evade bans and ddos OWOP.",
   "main": "index.js",
   "scripts": {
+    "build": "npm install",
     "start": "node index.js"
   },
   "dependencies": {
