@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Brutal.io WebSocket URL Builder</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #141e30, #243b55);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .container {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      width: 420px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 1.6em;
+      color: #00d9ff;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1.1em;
+    }
+    input {
+      padding: 10px;
+      font-size: 1em;
+      border: none;
+      border-radius: 6px;
+      width: 100%;
+      margin-bottom: 15px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 1.1em;
+      border: none;
+      border-radius: 6px;
+      background: #00d9ff;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+      width: 100%;
+    }
+    button:hover {
+      background: #00b8d4;
+      transform: scale(1.02);
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 6px;
+      min-height: 50px;
+      font-family: monospace;
+      text-align: left;
+    }
+    .url-line {
+      white-space: nowrap;
+      overflow-x: auto;
+      display: block;
+    }
+    .room-line {
+      margin-top: 5px;
+    }
+    #result::-webkit-scrollbar {
+      height: 6px;
+    }
+    #result::-webkit-scrollbar-thumb {
+      background-color: #00d9ff;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Brutal.io WebSocket URL Builder</h1>
+    <label for="cc">Country Code:</label>
+    <input type="text" id="cc" maxlength="2" placeholder="e.g. US" />
+    <button id="wsBtn" type="button">Generate WebSocket URL</button>
+    <div id="result">
+      Response will appear here...
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+  <script>
+    document.getElementById('wsBtn').onclick = function() {
+      const cc = document.getElementById('cc').value.trim().toUpperCase();
+      alert(cc);
+      const resultDiv = document.getElementById('result');
+
+      if (!cc || cc.length !== 2) {
+        resultDiv.textContent = "Please enter a valid 2-letter country code.";
+        return;
+      }
+      resultDiv.textContent = "Requesting server info...";
+     
+      $.ajax({
+        url: "/getserver",
+        type: "PUT",
+        dataType: "text",
+        contentType: "text/plain",
+        data: cc,
+        success: function(response) {
+  console.log(response);
+  if (!response || !response.includes('!')) {
+    resultDiv.textContent = "Invalid response from server.";
+    return;
+  }
+
+  function ipToDash(ip) {
+    return ip.replace(/\./g, '-');
+  }
+
+  let dashedHost = "";
+  let actual_port = 0;
+  let fixedRoomID = "";
+
+  const [host, rest] = response.split(':');
+
+  if (rest.includes('/')) {
+    // Format: ip:port/roomNumber!roomID
+    const [portPart, afterSlash] = rest.split('/');
+    const [roomNumber, roomID] = afterSlash.split('!');
+    fixedRoomID = roomID;
+    actual_port = parseInt(roomNumber, 10) + 8080 + 1000;
+    dashedHost = ipToDash(host);
+  } else {
+    // Format: ip:port!roomID
+    const [port, roomID] = rest.split('!');
+    fixedRoomID = roomID;
+    actual_port = parseInt(port, 10) + 8080 + 1000;
+    dashedHost = ipToDash(host);
+  }
+
+  if (isNaN(actual_port)) {
+    resultDiv.textContent = "Invalid port number in response.";
+    return;
+  }
+
+  const wsUrl = `wss://${dashedHost}.brutal.io:${actual_port}`;
+  resultDiv.innerHTML =
+    `<span class="url-line">WebSocket URL: ${wsUrl}</span>` +
+    `<span class="room-line">Room ID: ${fixedRoomID}</span>`;
+},
+        error: function(xhr, status, error) {
+          resultDiv.textContent = `Failed: ${status} ${error}`;
+        }
+      });
+    };
+  </script>
+</body>
+</html>
